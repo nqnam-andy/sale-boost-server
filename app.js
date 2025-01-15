@@ -1,7 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const userRoutes = require('./routes/user.route');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -12,7 +11,7 @@ const MONGO_URI = process.env.MONGO_URI;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use('/api/users', userRoutes);
+app.use('/api', require('./routes'));
 
 app.set('view engine', 'ejs');
 app.set('views', './views');
