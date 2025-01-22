@@ -2,7 +2,9 @@ const mongoose = require('mongoose');
 const { ObjectId } = mongoose.Schema.Types;
 
 const webhookSchema = new mongoose.Schema({
-    siteId: { type:  ObjectId, ref: 'User', required: true },
+    siteObjectId: { type:  ObjectId, ref: 'Site', required: true },
+    type: { type: String, required: true },
+    objectId: { type: String, required: true }, // id of the object that triggered the webhook
     name: { type: String, required: true },
     description: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
