@@ -36,8 +36,12 @@ exports.orderCreatedWebhook = async (req, res) => {
     siteObjectId: site._id,
   });
 
-  if (!platform || !site) {
+  if (!platform) {
     return res.status(200).send("Please set up the platform settings first!");
+  }
+
+  if (site.billing == '' && site.amountAction <= 0) {
+    return res.status(400).json({ error: 'You have no more action left!' });
   }
 
   const message = messageOrderCreated(eventData.createdEvent.entity);
@@ -52,14 +56,16 @@ exports.orderCreatedWebhook = async (req, res) => {
       name: ORDER_CREATED,
     });
 
-    await SiteModel.findOneAndUpdate(
-      {
-        instanceId: event.instanceId,
-      },
-      {
-        $inc: { amountAction: -1 },
-      }
-    );
+    if (site.billing == '') {
+      await SiteModel.findOneAndUpdate(
+        {
+          instanceId: event.instanceId,
+        },
+        {
+          $inc: { amountAction: -1 },
+        }
+      );
+    }
 
     res.status(200).send("Notification order created sent to Slack successfully!");
   }
@@ -97,6 +103,10 @@ exports.orderCanceledWebhook = async (req, res) => {
     return res.status(200).send("Please set up the platform settings first!");
   }
 
+  if (site.billing == '' && site.amountAction <= 0) {
+    return res.status(400).json({ error: 'You have no more action left!' });
+  }
+
   const message = messageOrderCanceled(eventData.actionEvent.body);
   const result = await sendSlackMessage({url: platform.url, data: eventData.actionEvent.body, site, type: ORDER_CANCELED});
 
@@ -109,14 +119,16 @@ exports.orderCanceledWebhook = async (req, res) => {
       name: ORDER_CANCELED,
     });
 
-    await SiteModel.findOneAndUpdate(
-      {
-        instanceId: event.instanceId,
-      },
-      {
-        $inc: { amountAction: -1 },
-      }
-    );
+    if (site.billing == '') {
+      await SiteModel.findOneAndUpdate(
+        {
+          instanceId: event.instanceId,
+        },
+        {
+          $inc: { amountAction: -1 },
+        }
+      );
+    }
 
     res.status(200).send("Notification order canceled sent to Slack successfully!");
   }

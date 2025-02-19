@@ -1,23 +1,35 @@
 const Site = require('../models/site.model');
 const PlatformModel = require('../models/platform.model');
-const { data } = require('../configs/')
+const { data } = require('../configs/');
 const { hooks } = require("../configs");
 
 exports.createOrReloadSite = async (req, res) => {
     try {
-        const { siteId, instanceId } = req.body;
+        const { siteId, instanceId, billing } = req.body;
 
         const existingSite = await Site.findOne({ instanceId });
         console.log(existingSite);
         if (existingSite) {
             let updatedSite = await reloadAmountActionForNewDay({ instanceId });
+            if (billing !== updatedSite.billing) {
+                updatedSite = await Site.findOneAndUpdate(
+                    { instanceId },
+                    { 
+                        billing,
+                        amountAction: billing === '' ? data.default_amount_action : existingSite.amountAction
+                    },
+                    { new: true, runValidators: true }
+                );
+            }
+
             const platform = await getPlatform(updatedSite._id);
             updatedSite = updatedSite.toJSON();
             updatedSite.url = platform?.url ? platform.url : "";
+
             return res.status(200).json(updatedSite);
         }
 
-        let newSite = new Site({ siteId, instanceId });
+        let newSite = new Site({ siteId, instanceId, billing });
 
         await newSite.save();
         const platform = await getPlatform(newSite._id);
@@ -46,7 +58,7 @@ exports.updateAmount = async (req, res) => {
         console.log(currentDate);
         console.log(site.updatedAt.toISOString().split('T')[0]);
         if (site && site.updatedAt.toISOString().split('T')[0] !== currentDate) {
-          amountAction = 20;
+          amountAction = data.default_amount_action;
         }
         site = await Site.findOneAndUpdate(
             { instanceId: req.params.instanceId },
