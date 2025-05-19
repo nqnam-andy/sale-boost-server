@@ -10,4 +10,4 @@ const siteSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Site', siteSchema);
+module.exports = mongoose.model('ChatBotSite', siteSchema);

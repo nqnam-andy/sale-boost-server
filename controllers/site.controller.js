@@ -2,29 +2,33 @@ const Site = require('../models/site.model');
 const PlatformModel = require('../models/platform.model');
 const { data } = require('../configs/');
 const { hooks } = require("../configs");
+const Package = require('../models/package.model');
 
 exports.createOrReloadSite = async (req, res) => {
     try {
         const { siteId, instanceId, billing } = req.body;
+        const packages = await Package.find()
+
+        const amountAction =
+            packages.find((pkg) => {
+                if (!pkg.title) return false
+                return slugify(pkg.title) === billing
+            })?.amountQuestion || data.default_amount_action
 
         const existingSite = await Site.findOne({ instanceId });
         console.log(existingSite);
         if (existingSite) {
-            let updatedSite = await reloadAmountActionForNewDay({ instanceId });
+            let updatedSite = await reloadAmountActionForNewDay({ instanceId, amountAction });
             if (billing !== updatedSite.billing) {
                 updatedSite = await Site.findOneAndUpdate(
                     { instanceId },
-                    { 
+                    {
                         billing,
-                        amountAction: billing === '' ? data.default_amount_action : existingSite.amountAction
+                        amountAction: amountAction
                     },
                     { new: true, runValidators: true }
                 );
             }
-
-            const platform = await getPlatform(updatedSite._id);
-            updatedSite = updatedSite.toJSON();
-            updatedSite.url = platform?.url ? platform.url : "";
 
             return res.status(200).json(updatedSite);
         }
@@ -32,39 +36,47 @@ exports.createOrReloadSite = async (req, res) => {
         let newSite = new Site({ siteId, instanceId, billing });
 
         await newSite.save();
-        const platform = await getPlatform(newSite._id);
-        newSite = newSite.toJSON();
-        newSite.url = platform?.url ? platform.url : "";
         res.status(201).json(newSite);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 };
 
-async function getPlatform(siteId) {
-    let platform = PlatformModel.findOne({ siteObjectId: siteId, hookName: hooks.name });
-    if (!platform) {
-        return null;
-    }
-
-    return platform;
+const slugify = (text) => {
+    return text
+        .trim() // Cắt khoảng trắng đầu và cuối
+        .toLowerCase() // Đưa về chữ thường
+        .replace(/\s+/g, '-') // Thay thế khoảng trắng giữa các từ bằng dấu -
 }
 
 exports.updateAmount = async (req, res) => {
     try {
+        const { billing } = req.body;
         const currentDate = new Date().toISOString().split('T')[0];
         let site = await Site.findOne({ instanceId: req.params.instanceId });
         let amountAction = Number(site.amountAction);
         console.log(currentDate);
         console.log(site.updatedAt.toISOString().split('T')[0]);
         if (site && site.updatedAt.toISOString().split('T')[0] !== currentDate) {
-          amountAction = data.default_amount_action;
+            const packages = await Package.find()
+
+            amountAction =
+                packages.find((pkg) => {
+                    if (!pkg.title) return false
+                    return slugify(pkg.title) === billing
+                })?.amountQuestion || data.default_amount_action
         }
-        site = await Site.findOneAndUpdate(
-            { instanceId: req.params.instanceId },
-            { amountAction: amountAction - 1 },
-            { new: true, runValidators: true }
-        );
+
+        if (amountAction === -1) {
+            // Nếu là gói không giới hạn, chỉ trả về site mà không update
+            site = await Site.findOne({ instanceId: req.params.instanceId });
+        } else {
+            site = await Site.findOneAndUpdate(
+                { instanceId: req.params.instanceId },
+                { amountAction: amountAction - 1 },
+                { new: true, runValidators: true }
+            );
+        }
         console.log(site);
         if (!site) return res.status(404).json({ error: 'Site not found' });
         res.status(200).json(site);
@@ -73,13 +85,13 @@ exports.updateAmount = async (req, res) => {
     }
 };
 
-async function reloadAmountActionForNewDay({ instanceId }) {
+async function reloadAmountActionForNewDay({ instanceId, amountAction }) {
     const currentDate = new Date().toISOString().split('T')[0];
     let site = await Site.findOne({ instanceId });
     if (site && site.updatedAt.toISOString().split('T')[0] !== currentDate) {
         site = await Site.findOneAndUpdate(
             { instanceId: instanceId },
-            { amountAction: data.default_amount_action },
+            { amountAction: amountAction },
             { new: true }
         );
     }

@@ -1,0 +1,26 @@
+[
+  {
+    "price": 10,
+    "amountQuestion": 100,
+    "title": "Starter Pack",
+    "description": "Perfect for small projects with up to 100 questions."
+  },
+  {
+    "price": 20,
+    "amountQuestion": 250,
+    "title": "Growth Pack",
+    "description": "Ideal for growing projects with up to 250 questions."
+  },
+  {
+    "price": 30,
+    "amountQuestion": 500,
+    "title": "Pro Pack",
+    "description": "Designed for professionals with up to 500 questions."
+  },
+  {
+    "price": 50,
+    "amountQuestion": -1,
+    "title": "Unlimited Pack",
+    "description": "Unlimited questions for large-scale projects."
+  }
+]
